@@ -1,41 +1,37 @@
+from faker import Faker
+import random
 import pandas as pd
+
+fake = Faker()
+
+# Generate sample user profile data
+num_profiles = 100
+profiles = []
+
+for _ in range(num_profiles):
+    profile = {
+        'Name': fake.name(),
+        'Age': random.randint(18, 65),
+        'Gender': random.choice(['Male', 'Female']),
+        'Interests': random.sample(['Outdoor', 'Art', 'Food'], random.randint(1, 3)),
+    }
+    profiles.append(profile)
+
+# Convert the profiles list to a Pandas DataFrame
+df = pd.DataFrame(profiles)
+
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-def create_recommendations(restaurants):
-    df = pd.DataFrame(restaurants)
-    # Select relevant features for recommendation
-    features = ["name", "categories"]
-    df = df[features]
-    
-    # Preprocess the text data
-    df["categories"] = df["categories"].apply(lambda x: ", ".join(x))
-    df["categories"] = df["categories"].str.lower()
-    
-    # Compute the TF-IDF matrix
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(df["categories"])
-    
-    # Compute cosine similarity
-    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-    
-    # Generate recommendations
-    indices = pd.Series(df.index, index=df["name"]).drop_duplicates()
-    recommendations = get_top_recommendations("Restaurant A", indices, cosine_sim)
-    
-    return recommendations
+# Extract features from the interests column
+vectorizer = CountVectorizer()
+features = vectorizer.fit_transform(df['Interests'].apply(lambda x: ' '.join(x)))
 
-def get_top_recommendations(name, indices, cosine_sim):
-    idx = indices[name]
-    sim_scores = list(enumerate(cosine_sim[idx]))
-    sim_scores = sorted
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1:6]  # Get top 5 recommendations (excluding the input restaurant)
-    restaurant_indices = [i[0] for i in sim_scores]
-    
-    return df["name"].iloc[restaurant_indices]
+# Compute the pairwise cosine similarity of feature vectors
+similarity_matrix = cosine_similarity(features)
 
-if __name__ == "__main__":
-    restaurants = fetch_restaurant_data("New York City")
-    recommendations = create_recommendations(restaurants)
-    print(recommendations)
+# Function to get recommendations based on user index
+def get_recommendations(user_index, num_recommendations=5):
+    user_similarities = similarity_matrix[user_index]
+    most_similar_users = user_similarities.argsort()[-num_recommendations - 1:-1][::-1]
+    return most_similar_users
